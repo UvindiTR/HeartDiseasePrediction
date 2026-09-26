@@ -204,7 +204,7 @@ st.markdown(
 )
 st.markdown(
     "<p style='text-align:center; color:#8890a0; margin-top:0.3rem;'>"
-    "AI-Based Medical Prediction Prototype</p>",
+    "AI-Based Medical Prediction </p>",
     unsafe_allow_html=True
 )
 st.write("")
