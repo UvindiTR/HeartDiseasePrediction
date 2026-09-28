@@ -324,7 +324,7 @@ if submitted:
 st.write("")
 st.markdown(
     "<p style='text-align:center; color:#5c6270; font-size:0.85rem;'>"
-    "⚠️ This is a prototype for educational purposes only and is not a substitute "
-    "for professional medical advice.</p>",
+    "An AI-powered tool to analyze health indicators and predict the likelihood of heart"
+    "</p>",
     unsafe_allow_html=True
 )
