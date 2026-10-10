@@ -1,11 +1,16 @@
 import base64
-import html
+import io
 import os
 from datetime import datetime
 
 import joblib
 import numpy as np
 import streamlit as st
+from reportlab.lib import colors
+from reportlab.lib.pagesizes import A4
+from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
+from reportlab.lib.units import cm
+from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 from tensorflow.keras.models import load_model
 
 
@@ -286,12 +291,7 @@ with st.sidebar:
 st.markdown(
     "<div class='hero'>"
     "<div class='hero-title'>❤️ Heart Disease Prediction System</div>"
-    "<div class='hero-sub'>Enter the 13 patient details to estimate the risk of heart disease</div>"
-    "<div class='chips'>"
-    "<span class='chip'>🧠 Neural network model</span>"
-    "<span class='chip'>📋 13 clinical inputs</span>"
-    "<span class='chip'>📊 Accuracy 83.4% · AUC 0.92</span>"
-    "</div></div>",
+    "</div>",
     unsafe_allow_html=True
 )
 
@@ -333,56 +333,74 @@ LEVEL_COLOUR = {"Low": "good", "Moderate": "warn", "High": "bad"}
 
 
 # ============================================================
-# DOWNLOADABLE REPORT
+# DOWNLOADABLE REPORT (PDF)
 # ============================================================
 
-def build_report_html(r):
-    """Return a self-contained HTML report (open in a browser, Ctrl+P to save as PDF)."""
-    esc = html.escape
+def build_report_pdf(r):
+    """Return the prediction report as PDF bytes."""
     colours = {"Low": "#15935f", "Moderate": "#c79100", "High": "#d62839"}
-    colour = colours[r["level"]]
+    colour = colors.HexColor(colours[r["level"]])
     plain_title = r["title"].replace("🔴", "").replace("🟢", "").strip()
     generated = datetime.now().strftime("%d %B %Y, %H:%M")
 
-    rows = "".join(
-        f"<tr><td>{esc(str(k))}</td><td><b>{esc(str(v))}</b></td></tr>"
-        for k, v in r["inputs"].items()
-    )
+    styles = getSampleStyleSheet()
+    title_style = ParagraphStyle("t", parent=styles["Title"], textColor=colors.HexColor("#e63946"))
+    meta_style = ParagraphStyle("m", parent=styles["Normal"], textColor=colors.HexColor("#5b6578"),
+                                alignment=1, spaceAfter=14)
+    result_style = ParagraphStyle("r", parent=styles["Heading2"], textColor=colour, alignment=1)
+    note_style = ParagraphStyle("n", parent=styles["Normal"], fontSize=9,
+                                textColor=colors.HexColor("#5b6578"))
 
-    return f"""<!DOCTYPE html>
-<html lang="en"><head><meta charset="utf-8">
-<title>Heart Disease Prediction Report</title>
-<style>
-  body {{font-family: Arial, Helvetica, sans-serif; color:#1b2233; max-width:760px; margin:2rem auto; padding:0 1rem;}}
-  h1 {{color:#e63946; margin-bottom:0.2rem;}}
-  .meta {{color:#5b6578; font-size:0.9rem; margin-bottom:1.5rem;}}
-  .result {{border:2px solid {colour}; border-radius:12px; padding:1.2rem 1.5rem; margin-bottom:1.5rem;}}
-  .result h2 {{margin:0 0 0.8rem 0; color:{colour};}}
-  .stats {{display:flex; gap:1rem;}}
-  .stat {{flex:1; background:#eef1f7; border-radius:10px; padding:0.8rem; text-align:center;}}
-  .stat b {{display:block; font-size:1.5rem;}}
-  .stat span {{color:#5b6578; font-size:0.85rem;}}
-  table {{width:100%; border-collapse:collapse;}}
-  td {{padding:0.5rem 0.3rem; border-bottom:1px solid #d5dbe8;}}
-  td:first-child {{color:#5b6578;}}
-  td:last-child {{text-align:right;}}
-  .note {{margin-top:2rem; font-size:0.85rem; color:#5b6578; border-top:1px solid #d5dbe8; padding-top:1rem;}}
-</style></head><body>
-<h1>Heart Disease Prediction Report</h1>
-<div class="meta">Generated on {generated}</div>
-<div class="result">
-  <h2>{esc(plain_title)}</h2>
-  <div class="stats">
-    <div class="stat"><b>{r['risk_pct']:.1f}%</b><span>Disease probability</span></div>
-    <div class="stat"><b>{r['conf']:.1f}%</b><span>Confidence</span></div>
-    <div class="stat"><b style="color:{colour}">{esc(r['level'])}</b><span>Risk level</span></div>
-  </div>
-</div>
-<h3>Patient details used for this prediction</h3>
-<table>{rows}</table>
-<div class="note">This report supports screening only and is not a medical diagnosis.
-Please consult a qualified doctor for any medical decision.</div>
-</body></html>"""
+    # headline numbers
+    stats = Table(
+        [[f"{r['risk_pct']:.1f}%", f"{r['conf']:.1f}%", r["level"]],
+         ["Disease probability", "Confidence", "Risk level"]],
+        colWidths=[5.5 * cm] * 3,
+    )
+    stats.setStyle(TableStyle([
+        ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+        ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+        ("FONTSIZE", (0, 0), (-1, 0), 18),
+        ("TEXTCOLOR", (2, 0), (2, 0), colour),
+        ("FONTSIZE", (0, 1), (-1, 1), 9),
+        ("TEXTCOLOR", (0, 1), (-1, 1), colors.HexColor("#5b6578")),
+        ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#eef1f7")),
+        ("BOX", (0, 0), (-1, -1), 1.5, colour),
+        ("TOPPADDING", (0, 0), (-1, -1), 8),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 8),
+    ]))
+
+    # patient details
+    details = Table([[str(k), str(v)] for k, v in r["inputs"].items()],
+                    colWidths=[10 * cm, 6.5 * cm])
+    details.setStyle(TableStyle([
+        ("ALIGN", (1, 0), (1, -1), "RIGHT"),
+        ("FONTNAME", (1, 0), (1, -1), "Helvetica-Bold"),
+        ("TEXTCOLOR", (0, 0), (0, -1), colors.HexColor("#5b6578")),
+        ("LINEBELOW", (0, 0), (-1, -1), 0.5, colors.HexColor("#d5dbe8")),
+        ("TOPPADDING", (0, 0), (-1, -1), 6),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
+    ]))
+
+    story = [
+        Paragraph("Heart Disease Prediction Report", title_style),
+        Paragraph(f"Generated on {generated}", meta_style),
+        Paragraph(plain_title, result_style),
+        Spacer(1, 6),
+        stats,
+        Spacer(1, 18),
+        Paragraph("Patient details used for this prediction", styles["Heading3"]),
+        details,
+        Spacer(1, 24),
+        Paragraph("This report supports screening only and is not a medical diagnosis. "
+                  "Please consult a qualified doctor for any medical decision.", note_style),
+    ]
+
+    buffer = io.BytesIO()
+    SimpleDocTemplate(buffer, pagesize=A4, title="Heart Disease Prediction Report",
+                      leftMargin=2 * cm, rightMargin=2 * cm,
+                      topMargin=2 * cm, bottomMargin=2 * cm).build(story)
+    return buffer.getvalue()
 
 
 # ============================================================
@@ -536,10 +554,10 @@ else:
     with btn_col:
         # optional: the user can download the report if they want it
         st.download_button(
-            "📄 Download report",
-            data=build_report_html(r),
-            file_name=f"heart_report_{datetime.now():%Y%m%d_%H%M}.html",
-            mime="text/html",
+            "📄 Download report (PDF)",
+            data=build_report_pdf(r),
+            file_name=f"heart_report_{datetime.now():%Y%m%d_%H%M}.pdf",
+            mime="application/pdf",
             use_container_width=True,
         )
         if st.button("← New prediction", use_container_width=True):
