@@ -1,5 +1,7 @@
 import base64
+import html
 import os
+from datetime import datetime
 
 import joblib
 import numpy as np
@@ -216,13 +218,13 @@ st.markdown(
     div[data-baseweb="popover"] li:hover {background-color: var(--card2) !important;}
 
     /* ---------- BUTTONS ---------- */
-    .stFormSubmitButton > button, div[data-testid="stButton"] > button {
+    .stFormSubmitButton > button, div[data-testid="stButton"] > button, div[data-testid="stDownloadButton"] > button {
         background: linear-gradient(120deg, #ff5c5c, #e63946); color: white; font-weight: 700;
         font-size: 1.15rem; padding: 0.8rem 1rem; border-radius: 12px; border: none;
         box-shadow: 0 8px 24px rgba(230,57,70,0.35); transition: transform 0.15s ease; margin-top: 0.6rem;}
-    .stFormSubmitButton > button:hover, div[data-testid="stButton"] > button:hover {
+    .stFormSubmitButton > button:hover, div[data-testid="stButton"] > button:hover, div[data-testid="stDownloadButton"] > button:hover {
         transform: translateY(-2px); color: white; border: none;}
-    .stFormSubmitButton > button p, div[data-testid="stButton"] > button p {color: white !important;}
+    .stFormSubmitButton > button p, div[data-testid="stButton"] > button p, div[data-testid="stDownloadButton"] > button p {color: white !important;}
 
     /* ---------- RESULT PAGE ---------- */
     .result-card {background: var(--card); border: 1.5px solid var(--border); border-radius: 18px;
@@ -328,6 +330,59 @@ THAL_MAP = {
 }
 
 LEVEL_COLOUR = {"Low": "good", "Moderate": "warn", "High": "bad"}
+
+
+# ============================================================
+# DOWNLOADABLE REPORT
+# ============================================================
+
+def build_report_html(r):
+    """Return a self-contained HTML report (open in a browser, Ctrl+P to save as PDF)."""
+    esc = html.escape
+    colours = {"Low": "#15935f", "Moderate": "#c79100", "High": "#d62839"}
+    colour = colours[r["level"]]
+    plain_title = r["title"].replace("🔴", "").replace("🟢", "").strip()
+    generated = datetime.now().strftime("%d %B %Y, %H:%M")
+
+    rows = "".join(
+        f"<tr><td>{esc(str(k))}</td><td><b>{esc(str(v))}</b></td></tr>"
+        for k, v in r["inputs"].items()
+    )
+
+    return f"""<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<title>Heart Disease Prediction Report</title>
+<style>
+  body {{font-family: Arial, Helvetica, sans-serif; color:#1b2233; max-width:760px; margin:2rem auto; padding:0 1rem;}}
+  h1 {{color:#e63946; margin-bottom:0.2rem;}}
+  .meta {{color:#5b6578; font-size:0.9rem; margin-bottom:1.5rem;}}
+  .result {{border:2px solid {colour}; border-radius:12px; padding:1.2rem 1.5rem; margin-bottom:1.5rem;}}
+  .result h2 {{margin:0 0 0.8rem 0; color:{colour};}}
+  .stats {{display:flex; gap:1rem;}}
+  .stat {{flex:1; background:#eef1f7; border-radius:10px; padding:0.8rem; text-align:center;}}
+  .stat b {{display:block; font-size:1.5rem;}}
+  .stat span {{color:#5b6578; font-size:0.85rem;}}
+  table {{width:100%; border-collapse:collapse;}}
+  td {{padding:0.5rem 0.3rem; border-bottom:1px solid #d5dbe8;}}
+  td:first-child {{color:#5b6578;}}
+  td:last-child {{text-align:right;}}
+  .note {{margin-top:2rem; font-size:0.85rem; color:#5b6578; border-top:1px solid #d5dbe8; padding-top:1rem;}}
+</style></head><body>
+<h1>Heart Disease Prediction Report</h1>
+<div class="meta">Generated on {generated}</div>
+<div class="result">
+  <h2>{esc(plain_title)}</h2>
+  <div class="stats">
+    <div class="stat"><b>{r['risk_pct']:.1f}%</b><span>Disease probability</span></div>
+    <div class="stat"><b>{r['conf']:.1f}%</b><span>Confidence</span></div>
+    <div class="stat"><b style="color:{colour}">{esc(r['level'])}</b><span>Risk level</span></div>
+  </div>
+</div>
+<h3>Patient details used for this prediction</h3>
+<table>{rows}</table>
+<div class="note">This report supports screening only and is not a medical diagnosis.
+Please consult a qualified doctor for any medical decision.</div>
+</body></html>"""
 
 
 # ============================================================
@@ -479,6 +534,14 @@ else:
 
     _, btn_col, _ = st.columns([1, 2, 1])
     with btn_col:
+        # optional: the user can download the report if they want it
+        st.download_button(
+            "📄 Download report",
+            data=build_report_html(r),
+            file_name=f"heart_report_{datetime.now():%Y%m%d_%H%M}.html",
+            mime="text/html",
+            use_container_width=True,
+        )
         if st.button("← New prediction", use_container_width=True):
             st.session_state.page = "form"
             st.rerun()
