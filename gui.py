@@ -22,7 +22,7 @@ root = tk.Tk()
 root.title("Heart Disease Prediction System")
 root.geometry("700x900")
 root.configure(bg="#f5f7fa")
-root.resizable(False, False)
+root.resizable(True, True)
 
 
 # ============================================================
