@@ -738,10 +738,7 @@ with st.sidebar:
 st.markdown(
     "<div class='hero'>"
     "<div class='hero-title'>❤️ Heart Disease Prediction System</div>"
-<<<<<<< HEAD
-=======
     "<div class='hero-sub'>Enter the 13 patient details to estimate the risk of heart disease</div>"
->>>>>>> origin/main
     "</div>",
     unsafe_allow_html=True
 )
