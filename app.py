@@ -253,6 +253,22 @@ st.markdown(
     .sum-row {display: flex; justify-content: space-between; padding: 0.45rem 0;
         border-bottom: 1px solid var(--border); font-size: 1rem; color: var(--muted);}
     .sum-row b {color: var(--text);}
+
+    /* ---------- DROPDOWNS: white in Light mode, dark in Dark mode ---------- */
+    div[data-testid="stSelectbox"] [data-testid="stWidgetLabel"] ~ * {
+        border: 1.5px solid var(--border) !important;
+        border-radius: 10px !important;
+    }
+    div[data-testid="stSelectbox"] [data-testid="stWidgetLabel"] ~ *,
+    div[data-testid="stSelectbox"] [data-testid="stWidgetLabel"] ~ * * {
+        background-color: var(--solid) !important;
+        color: var(--text) !important;
+    }
+    div[data-testid="stSelectbox"] svg {fill: var(--text) !important;}
+    ul[role="listbox"], li[role="option"] {
+        background-color: var(--solid) !important;
+        color: var(--text) !important;
+    }
     </style>
     """,
     unsafe_allow_html=True
@@ -285,11 +301,7 @@ st.markdown(
     "<div class='hero'>"
     "<div class='hero-title'>❤️ Heart Disease Prediction System</div>"
     "<div class='hero-sub'>Enter the 13 patient details to estimate the risk of heart disease</div>"
-    "<div class='chips'>"
-    "<span class='chip'>🧠 Neural network model</span>"
-    "<span class='chip'>📋 13 clinical inputs</span>"
-    "<span class='chip'>📊 Accuracy 83.4% · AUC 0.92</span>"
-    "</div></div>",
+    "</div>",
     unsafe_allow_html=True
 )
 
